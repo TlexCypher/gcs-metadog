@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"gcs-metadog/handler"
 	"github.com/samber/lo"
@@ -10,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 )
 
 const (
@@ -73,11 +71,6 @@ func run(cCtx *cli.Context) error {
 	lo.ForEach(metadataKeys, func(metadataKey string, index int) {
 		slog.Info("confirm each metadata key: ", slog.String("gcs-metadata-key", metadataKey))
 	})
-
-	if !strings.HasPrefix(bucket, "gs://") {
-		slog.Error("Google Cloud Storage bucket name must start with gs://", slog.String("bucket name validation error", bucket))
-		return fmt.Errorf("%w", errors.New("bucket name must start with gs://"))
-	}
 
 	sh := handler.NewSearchHandler(bucket, metadataKeys)
 	srs, err := sh.Do()
