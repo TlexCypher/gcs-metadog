@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"gcs-metadog/handler"
 	"github.com/samber/lo"
 	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 )
 
 const (
@@ -15,11 +18,9 @@ const (
 	ExitCodeErr int = iota
 )
 
-type FlagName string
-
 const (
-	Bucket      FlagName = "bucket"
-	MetadataKey FlagName = "metadata"
+	Bucket      string = "bucket"
+	MetadataKey string = "metadata"
 )
 
 func Core() int {
@@ -52,12 +53,12 @@ func newApp() *cli.App {
 func buildFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:    string(Bucket),
+			Name:    Bucket,
 			Aliases: []string{"b"},
 			Usage:   "GCS bucket name.",
 		},
 		&cli.StringSliceFlag{
-			Name:    string(MetadataKey),
+			Name:    MetadataKey,
 			Aliases: []string{"m"},
 			Usage:   "GCS metadata key.",
 		},
@@ -65,11 +66,22 @@ func buildFlags() []cli.Flag {
 }
 
 func run(cCtx *cli.Context) error {
-	bucket := cCtx.String(string(Bucket))
+	bucket := cCtx.String(Bucket)
 	slog.Info("confirm gcs bucket name: ", slog.String("gcs-bucket-name", bucket))
-	metadataKeys := cCtx.StringSlice(string(MetadataKey))
+
+	metadataKeys := cCtx.StringSlice(MetadataKey)
 	lo.ForEach(metadataKeys, func(metadataKey string, index int) {
 		slog.Info("confirm each metadata key: ", slog.String("gcs-metadata-key", metadataKey))
 	})
+
+	if !strings.HasPrefix(bucket, "gs://") {
+		slog.Error("Google Cloud Storage bucket name must start with gs://", slog.String("bucket name validation error", bucket))
+		return fmt.Errorf("%w", errors.New("bucket name must start with gs://"))
+	}
+
+	sh := handler.NewSearchHandler(bucket, metadataKeys)
+	if err := sh.Do(); err != nil {
+		return fmt.Errorf("failed to search such objects: %w", err)
+	}
 	return nil
 }
