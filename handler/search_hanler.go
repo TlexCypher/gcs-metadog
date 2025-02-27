@@ -1,13 +1,14 @@
 package handler
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+
+	"cloud.google.com/go/storage"
 	"github.com/samber/lo"
 	"google.golang.org/api/iterator"
-	"log/slog"
 )
 
 type SearchHandler struct {

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"gcs-metadog/cmd"
 	"log/slog"
 	"os"
+
+	"gcs-metadog/cmd"
 )
 
 func main() {

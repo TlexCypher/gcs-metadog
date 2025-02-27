@@ -3,12 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"gcs-metadog/handler"
-	"github.com/samber/lo"
-	"github.com/urfave/cli/v2"
 	"log/slog"
 	"os"
 	"os/signal"
+
+	"gcs-metadog/handler"
+	"github.com/samber/lo"
+	"github.com/urfave/cli/v2"
 )
 
 const (

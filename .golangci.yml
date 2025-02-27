@@ -28,6 +28,8 @@ linters:
     - forbidigo
     - revive # tentative
     - unparam # tentative
+    - gofumpt
+    - goimports
 
 linters-settings:
   cyclop:
