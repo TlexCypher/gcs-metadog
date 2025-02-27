@@ -1,12 +1,10 @@
 package handler
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-
-	"cloud.google.com/go/storage"
 	"github.com/samber/lo"
 	"google.golang.org/api/iterator"
 )
@@ -31,15 +29,8 @@ func NewSearchHandler(bucketName string, metadataKeys []string) *SearchHandler {
 	}
 }
 
-func (h *SearchHandler) Do() (*[]SearchResult, error) {
-	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		slog.Error("failed to initialize storage client", slog.String("error", err.Error()))
-		return nil, err
-	}
+func (h *SearchHandler) Do(ctx context.Context, client *storage.Client) (*[]SearchResult, error) {
 	defer client.Close()
-
 	itr := client.Bucket(h.bucketName).Objects(ctx, nil)
 	matchedObjectPaths := make([]SearchResult, 0)
 	for {

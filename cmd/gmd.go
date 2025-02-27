@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"fmt"
 	"log/slog"
@@ -64,6 +65,15 @@ func buildFlags() []cli.Flag {
 	}
 }
 
+func newGCSClient() (*storage.Client, context.Context, error) {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, ctx, err
+	}
+	return client, ctx, nil
+}
+
 func run(cCtx *cli.Context) error {
 	bucket := cCtx.String(Bucket)
 	slog.Info("confirm gcs bucket name: ", slog.String("gcs-bucket-name", bucket))
@@ -74,7 +84,11 @@ func run(cCtx *cli.Context) error {
 	})
 
 	sh := handler.NewSearchHandler(bucket, metadataKeys)
-	srs, err := sh.Do()
+	client, ctx, err := newGCSClient()
+	if err != nil {
+		slog.Error("failed to initialize storage client", slog.String("error", err.Error()))
+	}
+	srs, err := sh.Do(ctx, client)
 	if err != nil {
 		return fmt.Errorf("failed to search such objects: %w", err)
 	}
