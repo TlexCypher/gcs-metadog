@@ -80,8 +80,12 @@ func run(cCtx *cli.Context) error {
 	}
 
 	sh := handler.NewSearchHandler(bucket, metadataKeys)
-	if err := sh.Do(); err != nil {
+	srs, err := sh.Do()
+	if err != nil {
 		return fmt.Errorf("failed to search such objects: %w", err)
 	}
+	lo.ForEach(*srs, func(sr handler.SearchResult, index int) {
+		sr.Out()
+	})
 	return nil
 }
