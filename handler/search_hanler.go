@@ -34,7 +34,7 @@ func (sr SearchResult) Out() {
 func (h *SearchHandler) Do() (*[]SearchResult, error) {
 	ctx := context.Background()
 
-	itr := h.gcsClient.Objects(ctx, h.bucketName) // GCSClient 経由で Objects() を取得
+	itr := h.gcsClient.Objects(ctx, h.bucketName)
 	matchedObjectPaths := make([]SearchResult, 0)
 
 	for {
