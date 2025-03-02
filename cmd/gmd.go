@@ -65,6 +65,7 @@ func buildFlags() []cli.Flag {
 }
 
 func run(cCtx *cli.Context) error {
+	ctx := context.Background()
 	bucket := cCtx.String(Bucket)
 	slog.Info("confirm gcs bucket name: ", slog.String("gcs-bucket-name", bucket))
 
@@ -73,11 +74,19 @@ func run(cCtx *cli.Context) error {
 		slog.Info("confirm each metadata key: ", slog.String("gcs-metadata-key", metadataKey))
 	})
 
-	sh := handler.NewSearchHandler(bucket, metadataKeys)
+	gcsClient, err := handler.NewRealGCSClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to initialize GCS client: %w", err)
+	}
+	defer gcsClient.Close()
+
+	sh := handler.NewSearchHandler(gcsClient, bucket, metadataKeys)
+
 	srs, err := sh.Do()
 	if err != nil {
 		return fmt.Errorf("failed to search such objects: %w", err)
 	}
+
 	lo.ForEach(*srs, func(sr handler.SearchResult, index int) {
 		sr.Out()
 	})

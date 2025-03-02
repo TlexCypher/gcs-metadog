@@ -6,46 +6,45 @@ import (
 	"fmt"
 	"log/slog"
 
-	"cloud.google.com/go/storage"
-	"github.com/samber/lo"
 	"google.golang.org/api/iterator"
 )
 
 type SearchHandler struct {
+	gcsClient    GCSClient
 	bucketName   string
 	metadataKeys []string
+}
+
+func NewSearchHandler(gcsClient GCSClient, bucketName string, metadataKeys []string) *SearchHandler {
+	return &SearchHandler{
+		gcsClient:    gcsClient,
+		bucketName:   bucketName,
+		metadataKeys: metadataKeys,
+	}
 }
 
 type SearchResult struct {
 	ObjectPath string
 }
 
-func (sr *SearchResult) Out() {
+func (sr SearchResult) Out() {
 	fmt.Println(sr.ObjectPath)
-}
-
-func NewSearchHandler(bucketName string, metadataKeys []string) *SearchHandler {
-	return &SearchHandler{
-		bucketName:   bucketName,
-		metadataKeys: metadataKeys,
-	}
 }
 
 func (h *SearchHandler) Do() (*[]SearchResult, error) {
 	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		slog.Error("failed to initialize storage client", slog.String("error", err.Error()))
-		return nil, err
-	}
-	defer client.Close()
 
-	itr := client.Bucket(h.bucketName).Objects(ctx, nil)
+	itr := h.gcsClient.Objects(ctx, h.bucketName) // GCSClient 経由で Objects() を取得
 	matchedObjectPaths := make([]SearchResult, 0)
+
 	for {
 		objAttrs, err := itr.Next()
 		if errors.Is(err, iterator.Done) {
 			break
+		}
+		if err != nil {
+			slog.Error("failed to iterate objects", slog.String("error", err.Error()))
+			return nil, err
 		}
 		for _, metadataKey := range h.metadataKeys {
 			if _, exists := objAttrs.Metadata[metadataKey]; exists {
@@ -53,5 +52,5 @@ func (h *SearchHandler) Do() (*[]SearchResult, error) {
 			}
 		}
 	}
-	return lo.ToPtr(matchedObjectPaths), nil
+	return &matchedObjectPaths, nil
 }
