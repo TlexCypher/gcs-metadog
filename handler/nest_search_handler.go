@@ -1,14 +1,16 @@
 package handler
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/samber/lo"
-	"google.golang.org/api/iterator"
 	"log/slog"
 	"strings"
+
+	"github.com/samber/lo"
+	"google.golang.org/api/iterator"
 )
 
 type NestSearchHandler struct {
@@ -35,7 +37,6 @@ func (nsr NestSearchResult) Out() {
 	fmt.Println(nsr.ObjectPath)
 }
 
-// TODO: refactor
 func (h *NestSearchHandler) Do() (*[]NestSearchResult, error) {
 	ctx := context.Background()
 
@@ -51,44 +52,33 @@ func (h *NestSearchHandler) Do() (*[]NestSearchResult, error) {
 			slog.Error("failed to iterate objects", slog.String("error", err.Error()))
 			return nil, err
 		}
-		requiredTaskPathsJsonStr := objAttrs.Metadata["required_task_outputs"]
-		if requiredTaskPathsJsonStr != "" {
-			var taskNameVsOutputPathMap map[string]string
-			if err := json.Unmarshal([]byte(requiredTaskPathsJsonStr), &taskNameVsOutputPathMap); err != nil {
-				slog.Error("failed to unmarshal required_task_paths", slog.String("error", err.Error()))
+		requiredTaskPathsJSONStr, exists := objAttrs.Metadata["required_task_outputs"]
+		if !exists {
+			continue
+		}
+		var taskNameVsOutputPathMap map[string]string
+		if err := json.Unmarshal([]byte(requiredTaskPathsJSONStr), &taskNameVsOutputPathMap); err != nil {
+			slog.Error("failed to unmarshal required_task_paths", slog.String("error", err.Error()))
+			return nil, err
+		}
+		if outputPath, exists := taskNameVsOutputPathMap[h.dependTask]; exists {
+			bucketName, err := getBucketNameFromGCSPath(outputPath)
+			if err != nil {
+				slog.Error("failed to get bucket name", slog.String("error", err.Error()))
 				return nil, err
 			}
-			if outputPath, ok := taskNameVsOutputPathMap[h.dependTask]; ok {
-				bucketName, err := getBucketNameFromGCSPath(outputPath)
-				if err != nil {
-					slog.Error("failed to get bucket name", slog.String("error", err.Error()))
-					return nil, err
+			nitr := h.gcsClient.Objects(ctx, bucketName)
+			for {
+				nObjAttrs, err := nitr.Next()
+				if errors.Is(err, iterator.Done) {
+					break
 				}
-				nitr := h.gcsClient.Objects(ctx, bucketName)
-				for {
-					nObjAttrs, err := nitr.Next()
-					if errors.Is(err, iterator.Done) {
-						break
-					}
-					if err != nil {
-						slog.Error("failed to iterate objects", slog.String("error", err.Error()))
-						return nil, err
-					}
-					matchedFlag := true
-					for paramName, paramValue := range h.parameters {
-						value, ok := nObjAttrs.Metadata[paramName]
-						if !ok {
-							matchedFlag = false
-							break
-						}
-						if paramValue != value {
-							matchedFlag = false
-							break
-						}
-					}
-					if matchedFlag {
-						matchedObjectPaths = append(matchedObjectPaths, NestSearchResult{ObjectPath: outputPath})
-					}
+				if err != nil {
+					slog.Error("failed to iterate objects", slog.String("error", err.Error()))
+				}
+				matched := h.isMatchedObject(nObjAttrs)
+				if matched {
+					matchedObjectPaths = append(matchedObjectPaths, NestSearchResult{ObjectPath: outputPath})
 				}
 			}
 		}
@@ -96,11 +86,29 @@ func (h *NestSearchHandler) Do() (*[]NestSearchResult, error) {
 	return lo.ToPtr(matchedObjectPaths), nil
 }
 
+func (h *NestSearchHandler) isMatchedObject(objAttrs *storage.ObjectAttrs) bool {
+	matched := true
+	for paramName, paramValue := range h.parameters {
+		value, ok := objAttrs.Metadata[paramName]
+		if !ok {
+			matched = false
+			break
+		}
+		if paramValue != value {
+			matched = false
+			break
+		}
+	}
+	return matched
+}
+
 func getBucketNameFromGCSPath(gcsPath string) (string, error) {
 	if !strings.HasPrefix(gcsPath, "gs://") {
 		return "", fmt.Errorf("invalid gcs path: %s", gcsPath)
 	}
+
 	pathWOSchema := strings.TrimPrefix(gcsPath, "gs://")
-	parts := strings.SplitN(pathWOSchema, "/", 2)
-	return "gs://" + parts[0], nil
+	slashCount := 2
+	parts := strings.SplitN(pathWOSchema, "/", slashCount)
+	return parts[0], nil
 }

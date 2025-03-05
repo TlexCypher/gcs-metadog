@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -91,15 +92,15 @@ func buildAllFlags() []cli.Flag {
 func validateFlags(cCtx *cli.Context) error {
 	if cCtx.Bool(NestMode) {
 		if cCtx.IsSet(MetadataKey) {
-			return fmt.Errorf("metadata key is not allowed in nest mode")
+			return errors.New("metadata key is not allowed in nest mode")
 		} else if !cCtx.IsSet(DependTask) || !cCtx.IsSet(Parameter) {
-			return fmt.Errorf("depend-task and parameter are required in nest mode")
+			return errors.New("depend-task and parameter are required in nest mode")
 		}
 	} else {
 		if cCtx.IsSet(DependTask) || cCtx.IsSet(Parameter) {
-			return fmt.Errorf("depend-task and parameter are allowed in nest mode")
+			return errors.New("depend-task and parameter are allowed in nest mode")
 		} else if !cCtx.IsSet(MetadataKey) {
-			return fmt.Errorf("metadata key is required in normal mode")
+			return errors.New("metadata key is required in normal mode")
 		}
 	}
 	return nil
@@ -177,7 +178,8 @@ func getParameterMap(parameters []string) (map[string]string, error) {
 	parameterMap := make(map[string]string, 0)
 	for _, parameterExp := range parameters {
 		parts := strings.Split(parameterExp, "=")
-		if len(parts) != 2 {
+		keyValueCounts := 2
+		if len(parts) != keyValueCounts {
 			return nil, fmt.Errorf("invalid parameter expression: %s", parameterExp)
 		}
 		parameterMap[parts[0]] = parts[1]
