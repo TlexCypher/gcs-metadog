@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"cloud.google.com/go/storage"
 	"github.com/samber/lo"
 	"google.golang.org/api/iterator"
 )

@@ -6,6 +6,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/api/iterator"
 )
 
@@ -40,6 +41,7 @@ func (m *mockObjectIterator) Next() (*storage.ObjectAttrs, error) {
 }
 
 func TestNestSearchHandler_Do(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		gcsObjects  map[string][]*storage.ObjectAttrs
@@ -151,6 +153,7 @@ func TestNestSearchHandler_Do(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			mockClient := &mockGCSClient{objects: tt.gcsObjects}
 			handler := NewNestSearchHandler(mockClient, "test-bucket", tt.dependTask, tt.parameters)
 
@@ -159,7 +162,7 @@ func TestNestSearchHandler_Do(t *testing.T) {
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expected, *results)
 			}
 		})
