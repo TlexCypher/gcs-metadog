@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 
 	"gcs-metadog/handler"
 	"github.com/samber/lo"
@@ -18,6 +19,12 @@ const (
 )
 
 const (
+	NestMode string = "nest"
+)
+
+const (
+	Parameter   string = "parameter"
+	DependTask  string = "dependTask"
 	Bucket      string = "bucket"
 	MetadataKey string = "metadata"
 )
@@ -43,29 +50,77 @@ func newApp() *cli.App {
 	app := &cli.App{
 		Name:   "gmd (gcs-metadog)",
 		Usage:  "A command-line tool for searching GCS object which has exact metadata.",
+		Flags:  buildAllFlags(),
+		Before: validateFlags,
 		Action: run,
-		Flags:  buildFlags(),
 	}
 	return app
 }
 
-func buildFlags() []cli.Flag {
+func buildAllFlags() []cli.Flag {
 	return []cli.Flag{
+		&cli.BoolFlag{
+			Name:    NestMode,
+			Aliases: []string{"n"},
+			Usage:   "Nest mode",
+		},
 		&cli.StringFlag{
-			Name:    Bucket,
-			Aliases: []string{"b"},
-			Usage:   "GCS bucket name.",
+			Name:     Bucket,
+			Aliases:  []string{"b"},
+			Usage:    "GCS bucket name",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:    DependTask,
+			Aliases: []string{"t"},
+			Usage:   "Task name that is registered as a dependency of other tasks",
+		},
+		&cli.StringSliceFlag{
+			Name:    Parameter,
+			Aliases: []string{"p"},
+			Usage:   "Specify key=value pairs (can be used multiple times)",
 		},
 		&cli.StringSliceFlag{
 			Name:    MetadataKey,
 			Aliases: []string{"m"},
-			Usage:   "GCS metadata key.",
+			Usage:   "Specify metadata key (can be used multiple times)",
 		},
 	}
 }
 
+func validateFlags(cCtx *cli.Context) error {
+	if cCtx.Bool(NestMode) {
+		if cCtx.IsSet(MetadataKey) {
+			return fmt.Errorf("metadata key is not allowed in nest mode")
+		} else if !cCtx.IsSet(DependTask) || !cCtx.IsSet(Parameter) {
+			return fmt.Errorf("depend-task and parameter are required in nest mode")
+		}
+	} else {
+		if cCtx.IsSet(DependTask) || cCtx.IsSet(Parameter) {
+			return fmt.Errorf("depend-task and parameter are allowed in nest mode")
+		} else if !cCtx.IsSet(MetadataKey) {
+			return fmt.Errorf("metadata key is required in normal mode")
+		}
+	}
+	return nil
+}
+
 func run(cCtx *cli.Context) error {
+	if cCtx.Bool(NestMode) {
+		return runWithNormalMode(cCtx)
+	} else {
+		return runWithNestMode(cCtx)
+	}
+}
+
+func runWithNormalMode(cCtx *cli.Context) error {
 	ctx := context.Background()
+	gcsClient, err := handler.NewRealGCSClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to initialize GCS client: %w", err)
+	}
+	defer gcsClient.Close()
+
 	bucket := cCtx.String(Bucket)
 	slog.Info("confirm gcs bucket name: ", slog.String("gcs-bucket-name", bucket))
 
@@ -74,21 +129,58 @@ func run(cCtx *cli.Context) error {
 		slog.Info("confirm each metadata key: ", slog.String("gcs-metadata-key", metadataKey))
 	})
 
-	gcsClient, err := handler.NewRealGCSClient(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to initialize GCS client: %w", err)
-	}
-	defer gcsClient.Close()
-
-	sh := handler.NewSearchHandler(gcsClient, bucket, metadataKeys)
+	sh := handler.NewNormalSearchHandler(gcsClient, bucket, metadataKeys)
 
 	srs, err := sh.Do()
 	if err != nil {
 		return fmt.Errorf("failed to search such objects: %w", err)
 	}
 
-	lo.ForEach(*srs, func(sr handler.SearchResult, index int) {
+	lo.ForEach(*srs, func(sr handler.NormalSearchResult, index int) {
 		sr.Out()
 	})
 	return nil
+}
+
+func runWithNestMode(cCtx *cli.Context) error {
+	ctx := context.Background()
+	gcsClient, err := handler.NewRealGCSClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to initialize GCS client: %w", err)
+	}
+	defer gcsClient.Close()
+
+	bucket := cCtx.String(Bucket)
+	slog.Info("confirm gcs bucket name: ", slog.String("gcs-bucket-name", bucket))
+
+	dependTask := cCtx.String(DependTask)
+	parameters := cCtx.StringSlice(Parameter)
+	parametersMap, err := getParameterMap(parameters)
+	if err != nil {
+		slog.Error("invalid parameter expression", slog.String("parameter", "parameter's format should be key=value."))
+		return err
+	}
+	nsh := handler.NewNestSearchHandler(gcsClient, bucket, dependTask, parametersMap)
+
+	nsrs, err := nsh.Do()
+	if err != nil {
+		return fmt.Errorf("failed to search such objects: %w", err)
+	}
+
+	lo.ForEach(*nsrs, func(nsr handler.NestSearchResult, index int) {
+		nsr.Out()
+	})
+	return nil
+}
+
+func getParameterMap(parameters []string) (map[string]string, error) {
+	parameterMap := make(map[string]string, 0)
+	for _, parameterExp := range parameters {
+		parts := strings.Split(parameterExp, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid parameter expression: %s", parameterExp)
+		}
+		parameterMap[parts[0]] = parts[1]
+	}
+	return parameterMap, nil
 }

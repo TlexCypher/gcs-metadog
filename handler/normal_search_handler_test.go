@@ -45,12 +45,12 @@ func TestSearchHandler_Do(t *testing.T) {
 	}
 	mockItr := &MockObjectIterator{objects: mockObjects}
 	mockClient := &MockGCSClient{mockIterator: mockItr}
-	handler := NewSearchHandler(mockClient, "test-bucket", []string{"key1"})
+	handler := NewNormalSearchHandler(mockClient, "test-bucket", []string{"key1"})
 
 	results, err := handler.Do()
 	require.NoError(t, err)
 
-	expectedResults := []SearchResult{
+	expectedResults := []NormalSearchResult{
 		{ObjectPath: "file1.txt"},
 		{ObjectPath: "file3.txt"},
 	}
