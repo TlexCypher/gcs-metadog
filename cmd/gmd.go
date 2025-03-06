@@ -107,7 +107,7 @@ func validateFlags(cCtx *cli.Context) error {
 }
 
 func run(cCtx *cli.Context) error {
-	if cCtx.Bool(NestMode) {
+	if !cCtx.Bool(NestMode) {
 		return runWithNormalMode(cCtx)
 	} else {
 		return runWithNestMode(cCtx)
@@ -161,15 +161,17 @@ func runWithNestMode(cCtx *cli.Context) error {
 		slog.Error("invalid parameter expression", slog.String("parameter", "parameter's format should be key=value."))
 		return err
 	}
-	nsh := handler.NewNestSearchHandler(gcsClient, bucket, dependTask, parametersMap)
+	nsh := handler.NewNestSearchHandler(*gcsClient, bucket, dependTask, parametersMap)
 
 	nsrs, err := nsh.Do()
 	if err != nil {
 		return fmt.Errorf("failed to search such objects: %w", err)
 	}
-
-	lo.ForEach(*nsrs, func(nsr handler.NestSearchResult, index int) {
-		nsr.Out()
+	if nsrs == nil {
+		return nil
+	}
+	lo.ForEach(lo.Uniq(nsrs), func(sr handler.NestSearchResult, index int) {
+		sr.Out()
 	})
 	return nil
 }
