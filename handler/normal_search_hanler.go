@@ -9,33 +9,33 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-type SearchHandler struct {
+type NormalSearchHandler struct {
 	gcsClient    GCSClient
 	bucketName   string
 	metadataKeys []string
 }
 
-func NewSearchHandler(gcsClient GCSClient, bucketName string, metadataKeys []string) *SearchHandler {
-	return &SearchHandler{
+func NewNormalSearchHandler(gcsClient GCSClient, bucketName string, metadataKeys []string) *NormalSearchHandler {
+	return &NormalSearchHandler{
 		gcsClient:    gcsClient,
 		bucketName:   bucketName,
 		metadataKeys: metadataKeys,
 	}
 }
 
-type SearchResult struct {
+type NormalSearchResult struct {
 	ObjectPath string
 }
 
-func (sr SearchResult) Out() {
-	fmt.Println(sr.ObjectPath)
+func (nsr NormalSearchResult) Out() {
+	fmt.Println(nsr.ObjectPath)
 }
 
-func (h *SearchHandler) Do() (*[]SearchResult, error) {
+func (h *NormalSearchHandler) Do() (*[]NormalSearchResult, error) {
 	ctx := context.Background()
 
 	itr := h.gcsClient.Objects(ctx, h.bucketName)
-	matchedObjectPaths := make([]SearchResult, 0)
+	matchedObjectPaths := make([]NormalSearchResult, 0)
 
 	for {
 		objAttrs, err := itr.Next()
@@ -48,7 +48,7 @@ func (h *SearchHandler) Do() (*[]SearchResult, error) {
 		}
 		for _, metadataKey := range h.metadataKeys {
 			if _, exists := objAttrs.Metadata[metadataKey]; exists {
-				matchedObjectPaths = append(matchedObjectPaths, SearchResult{ObjectPath: objAttrs.Name})
+				matchedObjectPaths = append(matchedObjectPaths, NormalSearchResult{ObjectPath: objAttrs.Name})
 			}
 		}
 	}
