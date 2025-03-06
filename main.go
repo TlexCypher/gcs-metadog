@@ -8,8 +8,10 @@ import (
 	"gcs-metadog/cmd"
 )
 
+const filePermission = 0644
+
 func main() {
-	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, filePermission)
 	if err != nil {
 		log.Fatalf("failed to open app.log file: %s", err)
 	}

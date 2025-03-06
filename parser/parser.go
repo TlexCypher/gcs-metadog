@@ -30,36 +30,40 @@ func (p *Parser) Parse() ([]Gokart, error) {
 func (p *Parser) traverse(b interface{}, gokarts *[]Gokart) {
 	switch vertex := b.(type) {
 	case map[string]interface{}:
-		gokart_task_name_flag, gokart_output_path_flag := false, false
-		for k, _ := range vertex {
-			if k == "__gokart_task_name" {
-				gokart_task_name_flag = true
-			}
-			if k == "__gokart_output_path" {
-				gokart_output_path_flag = true
-			}
-		}
-		if gokart_task_name_flag && gokart_output_path_flag {
-			gokart_task_name, gokart_output_path := "", ""
-			for k, v := range vertex {
-				switch sv := v.(type) {
-				case string:
-					if k == "__gokart_task_name" {
-						gokart_task_name = sv
-					} else if k == "__gokart_output_path" {
-						gokart_output_path = sv
-					}
+		gokartTaskName, gokartOutputPath := "", ""
+		hasTaskName, hasOutputPath := false, false
+
+		for k, v := range vertex {
+			if sv, ok := v.(string); ok {
+				switch k {
+				case "__gokart_task_name":
+					gokartTaskName, hasTaskName = sv, true
+				case "__gokart_output_path":
+					gokartOutputPath, hasOutputPath = sv, true
 				}
 			}
-			*gokarts = append(*gokarts, Gokart{TaskName: gokart_task_name, OutputPath: gokart_output_path})
 		}
-		for _, v := range vertex {
+
+		if hasTaskName && hasOutputPath {
+			*gokarts = append(*gokarts, Gokart{TaskName: gokartTaskName, OutputPath: gokartOutputPath})
+		}
+
+		p.traverseChildren(vertex, gokarts)
+
+	case []interface{}:
+		p.traverseChildren(vertex, gokarts)
+	}
+}
+
+func (p *Parser) traverseChildren(data interface{}, gokarts *[]Gokart) {
+	switch d := data.(type) {
+	case map[string]interface{}:
+		for _, v := range d {
 			p.traverse(v, gokarts)
 		}
 	case []interface{}:
-		for _, v := range vertex {
+		for _, v := range d {
 			p.traverse(v, gokarts)
 		}
-	default:
 	}
 }

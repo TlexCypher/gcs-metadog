@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
+
 	"gcs-metadog/parser"
 	"github.com/samber/lo"
 	"google.golang.org/api/iterator"
-	"log/slog"
-	"strings"
 )
 
 type NestSearchHandler struct {
@@ -85,9 +86,11 @@ func (h *NestSearchHandler) Do() ([]NestSearchResult, error) {
 
 func (h *NestSearchHandler) filterByParameters(ctx context.Context, filtered []Dependency) ([]Dependency, error) {
 	deps := make([]Dependency, 0)
+	partsCount := 2
+
 	for _, d := range filtered {
 		noPrefixPath := strings.TrimPrefix(d.Dep.OutputPath, "gs://")
-		parts := strings.SplitN(noPrefixPath, "/", 2)
+		parts := strings.SplitN(noPrefixPath, "/", partsCount)
 		objAttrs, err := h.gcsClient.client.Bucket(parts[0]).Object(parts[1]).Attrs(ctx)
 		if err != nil {
 			return nil, err
