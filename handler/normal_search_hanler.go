@@ -46,10 +46,14 @@ func (h *NormalSearchHandler) Do() (*[]NormalSearchResult, error) {
 			slog.Error("failed to iterate objects", slog.String("error", err.Error()))
 			return nil, err
 		}
+		allExists := true
 		for _, metadataKey := range h.metadataKeys {
-			if _, exists := objAttrs.Metadata[metadataKey]; exists {
-				matchedObjectPaths = append(matchedObjectPaths, NormalSearchResult{ObjectPath: objAttrs.Name})
+			if _, exists := objAttrs.Metadata[metadataKey]; !exists {
+				allExists = false
 			}
+		}
+		if allExists {
+			matchedObjectPaths = append(matchedObjectPaths, NormalSearchResult{ObjectPath: objAttrs.Name})
 		}
 	}
 	return &matchedObjectPaths, nil
