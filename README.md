@@ -12,14 +12,16 @@ GCS-Metadog is the interface for this purpose.
 Thank you for reviewing my code, @kitagry, @hirosassa, @m3dev!
 
 ## Installation
-Comming soon... (But in a few days, you can install from homebrew, like `brew install gmd`)
+```shell
+brew install TlexCypher/tap/gmd
+```
 
 ## Usage
 ### Normal Mode
 When you want to search GCS object from metadata key only, you can use normal mode search.
 You can get full GCS object path list.
 ```bash
-% ./gmd -b ${bucket_name} -m ${metadata_key1} -m {metadata_key} .....
+gmd -b ${bucket_name} -m ${metadata_key1} -m {metadata_key} .....
 ```
 
 ### Nest Mode
@@ -28,8 +30,8 @@ For example, you want to search some Tasks those have TaskA(parameter1=1, parame
 You can easily search with gmd by using nest mode.
 Parameter and Task names are case sensitive.
 ```bash
-% ./gmd -b ${bucket_name} -t ${dependency_task_name} -p {parameter_name1=parameter_value1} -p {parameter_name1=parameter_value1} .....
+gmd -b ${bucket_name} -t ${dependency_task_name} -p {parameter_name1=parameter_value1} -p {parameter_name1=parameter_value1} .....
 ```
 
 ## Future Work
-I plan to support adding multiple sets of -t and -p options in the future, and I will also make installation available via Homebrew.
+I plan to support adding multiple sets of -t and -p options in the future.
