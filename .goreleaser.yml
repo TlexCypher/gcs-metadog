@@ -2,6 +2,7 @@ version: 2
 
 builds:
   - main: .
+    binary: gmd
     goos:
       - windows
       - darwin
