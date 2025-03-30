@@ -32,7 +32,8 @@ archives:
       {{- else }}{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ end }}
 
 brews:
-  - description: CLI tool for searching GCS object which has exact custom-metadata.
+  - name: gmd
+    description: CLI tool for searching GCS object which has exact custom-metadata.
     repository:
       owner: TlexCypher
       name: homebrew-tap
